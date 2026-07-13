@@ -6,6 +6,9 @@ import { useCookies } from "react-cookie";
 const BOT_AVATAR =
   "https://imageio.forbes.com/specials-images/imageserve/5ed00f17d4a99d0006d2e738/0x0.jpg?format=jpg&crop=4666,4663,x154,y651,safe&height=416&width=416&fit=bounds";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+const BACKEND_PATH = process.env.NEXT_PUBLIC_BACKEND_PATH;
+
 // Kanye-flavored copy (see yegpt-ui.md)
 const PLACEHOLDER_PROMPTS = [
   "How do I become legendary?",
@@ -134,8 +137,7 @@ function YeChat() {
     setKanyeTyping(true);
     axios
       .post(
-        "http://localhost:8080/bot",
-        // "https://ye-gpt-backend.vercel.app/bot",
+        `${BACKEND_URL}${BACKEND_PATH}`,
         {
           message: text,
         },
