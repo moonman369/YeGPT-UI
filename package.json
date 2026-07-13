@@ -1,0 +1,30 @@
+{
+  "name": "yeezy-client",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "emotion": "^11.0.0",
+    "fs": "^0.0.1-security",
+    "mindsdb-js-sdk": "^2.2.2",
+    "net": "^1.0.2",
+    "next": "13.4.6",
+    "openai": "^3.3.0",
+    "react": "18.2.0",
+    "react-cookie": "^4.1.1",
+    "react-dom": "18.2.0",
+    "react-notifications": "^1.7.4",
+    "react-scroll-to-bottom": "^4.2.0",
+    "tls": "^0.0.1"
+  },
+  "devDependencies": {
+    "eslint": "8.43.0",
+    "eslint-config-next": "13.4.6"
+  }
+}
