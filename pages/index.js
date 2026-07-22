@@ -1,13 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import Head from "next/head";
-import axios from "axios";
-import { useCookies } from "react-cookie";
+import { useConversation } from "../hooks/useConversation";
 
 const BOT_AVATAR =
   "https://imageio.forbes.com/specials-images/imageserve/5ed00f17d4a99d0006d2e738/0x0.jpg?format=jpg&crop=4666,4663,x154,y651,safe&height=416&width=416&fit=bounds";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-const BACKEND_PATH = process.env.NEXT_PUBLIC_BACKEND_PATH;
 
 // Kanye-flavored copy (see yegpt-ui.md)
 const PLACEHOLDER_PROMPTS = [
@@ -63,6 +59,13 @@ const ERROR_MESSAGES = [
   "Maximum creativity exceeded.",
 ];
 
+const RETRY_MESSAGES = [
+  "Run it back.",
+  "Version two is always cleaner.",
+  "Every classic gets remastered.",
+  "Let's produce another take.",
+];
+
 const IDLE_QUOTES = [
   "Confidence is free. Vision isn't.",
   "Small ideas make me itchy.",
@@ -75,122 +78,85 @@ const IDLE_QUOTES = [
 const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 function YeChat() {
+  const { messages, isSending, error, send, retry, reset } = useConversation();
   const [userInput, setUserInput] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [cookies, setCookies] = useCookies({
-    messages: [],
-  });
-  const [kanyeTyping, setKanyeTyping] = useState(false);
   const [loadingText, setLoadingText] = useState(LOADING_MESSAGES[0]);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [idleQuote, setIdleQuote] = useState(IDLE_QUOTES[0]);
+  const [errorFlavor, setErrorFlavor] = useState(ERROR_MESSAGES[0]);
+  const [retryFlavor, setRetryFlavor] = useState(RETRY_MESSAGES[0]);
+  const [confirmReset, setConfirmReset] = useState(false);
   const msgContainer = useRef(null);
   const inputRef = useRef(null);
+
+  const isEmpty = messages.length === 0;
+  const lastMessage = messages[messages.length - 1];
+  const hasFailed = lastMessage?.status === "failed";
 
   useEffect(() => {
     const lastMsg = msgContainer?.current?.lastElementChild;
     lastMsg?.scrollIntoView({
       behavior: "smooth",
     });
-  }, [messages]);
+  }, [messages, isSending, hasFailed]);
 
   useEffect(() => {
-    const local = localStorage.getItem("messages");
-    localStorage.clear();
-    localStorage.setItem("messages", local);
-
-    setMessages(
-      JSON.parse(localStorage.getItem("messages")) || cookies?.messages || []
-    );
-
-    // Randomize the idle quote only on the client to avoid an SSR/CSR
+    // Randomize the flavor text only on the client to avoid an SSR/CSR
     // hydration mismatch (the server can't know which random line to render).
     setIdleQuote(pickRandom(IDLE_QUOTES));
+    setErrorFlavor(pickRandom(ERROR_MESSAGES));
+    setRetryFlavor(pickRandom(RETRY_MESSAGES));
   }, []);
+
+  // Re-roll the failure flavor text each time a new error lands
+  useEffect(() => {
+    if (!error) return;
+    setErrorFlavor(pickRandom(ERROR_MESSAGES));
+    setRetryFlavor(pickRandom(RETRY_MESSAGES));
+  }, [error]);
 
   // Rotate the Ye-style loading caption while he's "cooking"
   useEffect(() => {
-    if (!kanyeTyping) return;
+    if (!isSending) return;
     setLoadingText(pickRandom(LOADING_MESSAGES));
     const id = setInterval(() => {
       setLoadingText(pickRandom(LOADING_MESSAGES));
     }, 1800);
     return () => clearInterval(id);
-  }, [kanyeTyping]);
+  }, [isSending]);
 
   // Rotate the input placeholder prompts when the field is idle
   useEffect(() => {
-    if (userInput || kanyeTyping) return;
+    if (userInput || isSending) return;
     const id = setInterval(() => {
       setPlaceholderIdx((i) => (i + 1) % PLACEHOLDER_PROMPTS.length);
     }, 3000);
     return () => clearInterval(id);
-  }, [userInput, kanyeTyping]);
+  }, [userInput, isSending]);
 
   const handleChange = (event) => {
     setUserInput(event.target.value);
   };
 
-  const sendMessage = (text) => {
-    const newMessage = { user: true, text };
-    setMessages([...messages, newMessage, { user: false, text: "loading" }]);
-    setKanyeTyping(true);
-    axios
-      .post(
-        `${BACKEND_URL}${BACKEND_PATH}`,
-        {
-          message: text,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      )
-      .then((response) => {
-        const botResponse = {
-          user: false,
-          text: response.data.results[0].response,
-        };
-        setCookies("messages", [...messages, newMessage, botResponse]);
-        localStorage.setItem(
-          "messages",
-          JSON.stringify([...messages, newMessage, botResponse])
-        );
-        setMessages([...messages, newMessage, botResponse]);
-        setKanyeTyping(false);
-      })
-      .catch((error) => {
-        console.error(error);
-        const botResponse = {
-          user: false,
-          text: pickRandom(ERROR_MESSAGES),
-        };
-        setCookies("messages", [...messages, newMessage, botResponse]);
-        localStorage.setItem(
-          "messages",
-          JSON.stringify([...messages, newMessage, botResponse])
-        );
-        setMessages([...messages, newMessage, botResponse]);
-        setKanyeTyping(false);
-      });
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!userInput.trim() || isSending) return;
+    send(userInput);
     setUserInput("");
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    if (userInput && !kanyeTyping) {
-      sendMessage(userInput);
-    }
+  const handleReset = () => {
+    reset();
+    setUserInput("");
+    setIdleQuote(pickRandom(IDLE_QUOTES));
+    setConfirmReset(false);
   };
 
   const handleSuggestion = (prompt) => {
-    if (kanyeTyping) return;
-    sendMessage(prompt);
+    if (isSending) return;
+    send(prompt);
     inputRef.current?.focus();
   };
-
-  const isEmpty = messages.length === 0;
 
   return (
     <>
@@ -223,8 +189,36 @@ function YeChat() {
             <h2 className="name">YeGPT</h2>
             <span className="status">online • touchin the sky ✨</span>
           </div>
-          <i className="fa fa-video-camera video-icon"></i>
+          <button
+            className="reset-button"
+            onClick={() => setConfirmReset(true)}
+            disabled={isEmpty || isSending}
+            title="Start fresh"
+            aria-label="Reset conversation"
+          >
+            <i className="fa fa-trash-o" aria-hidden="true"></i>
+          </button>
         </div>
+
+        {confirmReset && (
+          <div className="modal-overlay" onClick={() => setConfirmReset(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <h3 className="modal-title">Delete this conversation?</h3>
+              <p className="modal-subtitle">Even classics get archived.</p>
+              <div className="modal-actions">
+                <button
+                  className="modal-btn ghost"
+                  onClick={() => setConfirmReset(false)}
+                >
+                  Keep it
+                </button>
+                <button className="modal-btn danger" onClick={handleReset}>
+                  Start fresh
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="chat-window">
           <p className="chat-bot-header">
             Powered by{" "}
@@ -263,7 +257,7 @@ function YeChat() {
                     key={i}
                     className="suggestion-chip"
                     onClick={() => handleSuggestion(prompt)}
-                    disabled={kanyeTyping}
+                    disabled={isSending}
                   >
                     {prompt}
                   </button>
@@ -272,42 +266,73 @@ function YeChat() {
               <p className="idle-quote">“{idleQuote}”</p>
             </div>
           ) : (
-            messages.map((message, index) => (
-              <div key={index} className="message-container" ref={msgContainer}>
-                {message.user ? (
-                  <>
-                    <div className="user-message message">
-                      <div className="message-text">{message.text}</div>
-                    </div>
-                    <span className="profile-image user-image" aria-label="You">
-                      <i className="fa fa-user" aria-hidden="true"></i>
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <img
-                      className="profile-image bot-image"
-                      src={BOT_AVATAR}
-                      alt="Bot Profile"
-                    />
-                    {message.text === "loading" ? (
-                      <div className="loading-bubble">
-                        <img
-                          className="typing-bubble"
-                          src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExODg3ZjFlNzQ1Mzc1ZTFlNTMyZTVjODIzMDYyODUwNDQ0ZDY3ZmU5YyZjdD1z/3tLfKrc4pLWiTkAAph/giphy.gif"
-                          alt="Ye typing"
-                        />
-                        <span className="loading-text">{loadingText}</span>
+            <div className="message-list" ref={msgContainer}>
+              {messages.map((message) => (
+                <div key={message.id} className="message-container">
+                  {message.role === "user" ? (
+                    <>
+                      <div
+                        className={`user-message message${
+                          message.status === "failed" ? " failed" : ""
+                        }${message.status === "pending" ? " pending" : ""}`}
+                      >
+                        <div className="message-text">{message.content}</div>
                       </div>
-                    ) : (
+                      <span
+                        className="profile-image user-image"
+                        aria-label="You"
+                      >
+                        <i className="fa fa-user" aria-hidden="true"></i>
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <img
+                        className="profile-image bot-image"
+                        src={BOT_AVATAR}
+                        alt="Bot Profile"
+                      />
                       <div className="bot-message message">
-                        <div className="message-text">{message.text}</div>
+                        <div className="message-text">{message.content}</div>
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            ))
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {isSending && (
+                <div className="message-container">
+                  <img
+                    className="profile-image bot-image"
+                    src={BOT_AVATAR}
+                    alt="Bot Profile"
+                  />
+                  <div className="loading-bubble">
+                    <img
+                      className="typing-bubble"
+                      src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExODg3ZjFlNzQ1Mzc1ZTFlNTMyZTVjODIzMDYyODUwNDQ0ZDY3ZmU5YyZjdD1z/3tLfKrc4pLWiTkAAph/giphy.gif"
+                      alt="Ye typing"
+                    />
+                    <span className="loading-text">{loadingText}</span>
+                  </div>
+                </div>
+              )}
+
+              {hasFailed && !isSending && (
+                <div className="retry-row">
+                  <span className="retry-flavor" title={error || undefined}>
+                    {errorFlavor}
+                  </span>
+                  <button
+                    className="retry-button"
+                    onClick={() => retry(lastMessage.id)}
+                  >
+                    <i className="fa fa-repeat" aria-hidden="true"></i>{" "}
+                    {retryFlavor}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
         <form className="form" onSubmit={handleSubmit}>
@@ -317,9 +342,9 @@ function YeChat() {
             placeholder={PLACEHOLDER_PROMPTS[placeholderIdx]}
             value={userInput}
             onChange={handleChange}
-            disabled={kanyeTyping}
+            disabled={isSending}
           />
-          <button type="submit" disabled={kanyeTyping}>
+          <button type="submit" disabled={isSending}>
             <i className="fa fa-paper-plane" aria-hidden="true"></i>
           </button>
         </form>

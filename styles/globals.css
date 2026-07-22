@@ -175,6 +175,57 @@ body::before {
   font-family: inherit;
 }
 
+.message-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-message.pending {
+  opacity: 0.6;
+}
+
+.user-message.failed {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px dashed rgba(255, 94, 219, 0.6);
+  box-shadow: none;
+  opacity: 0.8;
+}
+
+/* failed-send retry affordance */
+.retry-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: -4px 0 14px;
+  animation: pop-in 0.3s ease both;
+}
+
+.retry-flavor {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-dim);
+  cursor: help;
+}
+
+.retry-button {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-4);
+  background: rgba(255, 94, 219, 0.1);
+  border: 1px solid rgba(255, 94, 219, 0.35);
+  border-radius: 16px;
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: background 200ms ease, transform 200ms ease;
+}
+
+.retry-button:hover {
+  background: rgba(255, 94, 219, 0.22);
+  transform: translateY(-1px);
+}
+
 .header-image {
   width: 70px;
   height: 70px;
@@ -469,7 +520,7 @@ body::before {
 }
 
 .back-button,
-.video-icon {
+.reset-button {
   font-size: 22px;
   color: var(--accent);
   cursor: pointer;
@@ -477,9 +528,114 @@ body::before {
 }
 
 .back-button:hover,
-.video-icon:hover {
+.reset-button:hover:not(:disabled) {
   color: var(--accent-3);
   transform: scale(1.15);
+}
+
+.reset-button {
+  background: none;
+  border: none;
+  outline: none;
+  padding: 4px 8px;
+  font-family: inherit;
+}
+
+.reset-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* reset confirmation modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(5, 2, 10, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fade-in 0.2s ease both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  width: 100%;
+  max-width: 380px;
+  padding: 26px 24px 20px;
+  text-align: center;
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(32, 20, 50, 0.97), rgba(18, 10, 30, 0.97));
+  border: 1px solid var(--glass-brd);
+  box-shadow: 0 24px 60px -18px rgba(123, 47, 247, 0.65);
+  animation: pop-in 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+}
+
+.modal-title {
+  margin: 0 0 8px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.modal-subtitle {
+  margin: 0 0 22px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.modal-btn {
+  flex: 1;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 11px 18px;
+  border-radius: 22px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 200ms ease, box-shadow 200ms ease, background 200ms ease;
+}
+
+.modal-btn:hover {
+  transform: translateY(-2px);
+}
+
+.modal-btn.ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.modal-btn.ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.modal-btn.danger {
+  background: linear-gradient(135deg, var(--accent-4), var(--accent-2));
+  color: #fff;
+  box-shadow: 0 8px 22px -8px rgba(197, 58, 174, 0.8);
+}
+
+.modal-btn.danger:hover {
+  box-shadow: 0 10px 28px -8px rgba(255, 94, 219, 0.9);
 }
 
 .ref-link {
