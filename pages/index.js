@@ -134,15 +134,35 @@ function YeChat() {
     return () => clearInterval(id);
   }, [userInput, isSending]);
 
+  // Auto-grow the textarea to fit its content (up to the CSS max-height).
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [userInput]);
+
   const handleChange = (event) => {
     setUserInput(event.target.value);
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const submitMessage = () => {
     if (!userInput.trim() || isSending) return;
     send(userInput);
     setUserInput("");
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    submitMessage();
+  };
+
+  // Enter sends; Shift+Enter inserts a newline (default textarea behavior).
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      submitMessage();
+    }
   };
 
   const handleReset = () => {
@@ -336,12 +356,14 @@ function YeChat() {
           )}
         </div>
         <form className="form" onSubmit={handleSubmit}>
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
+            className="chat-input"
+            rows={1}
             placeholder={PLACEHOLDER_PROMPTS[placeholderIdx]}
             value={userInput}
             onChange={handleChange}
+            onKeyDown={handleKeyDown}
             disabled={isSending}
           />
           <button type="submit" disabled={isSending}>
